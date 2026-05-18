@@ -14,9 +14,10 @@
  * EventItem:  { kind:'event',  score, id, snippet, platform, published_at }
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, HTMLProps } from 'react';
 import { gsap } from 'gsap';
 import client from '../api/client'; // axios instance — base URL already set
+import { SearchResult, SearchMeta, SearchResponse } from '../types';
 
 /* ─────────────────────────────────────────────────────────────────────────────
    CARBON g100 DESIGN TOKENS
@@ -59,10 +60,10 @@ const RISK_MAP = {
   high:     { color: '#ff832b', label: 'HIGH'     },
   medium:   { color: '#f1c21b', label: 'MEDIUM'   },
   low:      { color: '#42be65', label: 'LOW'       },
-};
+} as const;
 
-const getRisk = (score, level) => {
-  if (level && RISK_MAP[String(level).toLowerCase()]) return RISK_MAP[String(level).toLowerCase()];
+const getRisk = (score: number, level?: string): { color: string; label: string } => {
+  if (level && RISK_MAP[String(level).toLowerCase() as keyof typeof RISK_MAP]) return RISK_MAP[String(level).toLowerCase() as keyof typeof RISK_MAP];
   if (score >= 80) return RISK_MAP.critical;
   if (score >= 60) return RISK_MAP.high;
   if (score >= 40) return RISK_MAP.medium;
@@ -75,7 +76,7 @@ const getRisk = (score, level) => {
 const redact = (text = '') =>
   String(text).replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, '[ID REDACTED]');
 
-const fmtDate = (iso) => {
+const fmtDate = (iso?: string): string | null => {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
@@ -89,7 +90,7 @@ const fmtTime = () =>
    entity_type, primary_identifier, title, status, snippet, platform, published_at
    all come from the FastAPI search endpoint exactly as defined in endpoints.py.
 ───────────────────────────────────────────────────────────────────────────── */
-const normalise = (item) => {
+const normalise = (item: any): SearchResult => {
   const base = {
     kind:       item.kind,
     score:      item.score ?? 0,
@@ -132,7 +133,7 @@ const normalise = (item) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    API CALL — GET /api/v1/search
 ───────────────────────────────────────────────────────────────────────────── */
-const searchAPI = async (q, page = 1, pageSize = 20) => {
+const searchAPI = async (q: string, page = 1, pageSize = 20): Promise<SearchResponse> => {
   const { data } = await client.get('/api/v1/search', {
     params: { q, page, page_size: pageSize },
   });
@@ -157,7 +158,7 @@ function Scanlines() {
   );
 }
 
-function StatusBar({ meta }) {
+function StatusBar({ meta }: { meta?: SearchMeta | null }) {
   const [tick, setTick] = useState(fmtTime());
   useEffect(() => {
     const id = setInterval(() => setTick(fmtTime()), 1000);
@@ -194,7 +195,7 @@ function StatusBar({ meta }) {
   );
 }
 
-function SearchInput({ value, onChange, onSearch, loading }) {
+function SearchInput({ value, onChange, onSearch, loading }: { value: string; onChange: (value: string) => void; onSearch: (value: string) => void; loading: boolean }) {
   const borderRef = useRef(null);
   return (
     <div style={{ position: 'relative', maxWidth: 800, marginBottom: '0.25rem' }}>
@@ -264,7 +265,7 @@ function SearchInput({ value, onChange, onSearch, loading }) {
   );
 }
 
-function SearchHint({ loading }) {
+function SearchHint({ loading }: { loading: boolean }) {
   return (
     <p style={{
       fontSize: '0.75rem', color: loading ? C.interactive : C.textHelper,
@@ -282,11 +283,11 @@ function SearchHint({ loading }) {
 }
 
 // Filter + sort toolbar — client-side after API returns
-function Toolbar({ filter, onFilter, sortBy, onSort, total, displayed }) {
+function Toolbar({ filter, onFilter, sortBy, onSort, total, displayed }: { filter: string; onFilter: (f: string) => void; sortBy: string; onSort: (s: string) => void; total: number; displayed: number }) {
   const kinds = ['all', 'entity', 'alert', 'event'];
   const sorts = [{ value: 'score', label: 'Relevance' }, { value: 'risk_score', label: 'Risk Score' }];
 
-  const pill = (active) => ({
+  const pill = (active: boolean) => ({
     padding: '0.25rem 0.75rem',
     fontFamily: 'IBM Plex Mono, monospace', fontSize: '0.5625rem',
     letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer',
@@ -310,9 +311,9 @@ function Toolbar({ filter, onFilter, sortBy, onSort, total, displayed }) {
   );
 }
 
-function RiskMeter({ score, level }) {
+function RiskMeter({ score, level }: { score?: number; level?: string }) {
   if (score === undefined && !level) return null;
-  const risk = getRisk(score, level);
+  const risk = getRisk(score ?? 0, level);
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{
@@ -335,8 +336,8 @@ function RiskMeter({ score, level }) {
   );
 }
 
-function KindTag({ kind }) {
-  const cfg = KIND[kind] || KIND.event;
+function KindTag({ kind }: { kind: string }) {
+  const cfg = KIND[kind as keyof typeof KIND] || KIND.event;
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -350,7 +351,7 @@ function KindTag({ kind }) {
   );
 }
 
-function BadgeTag({ label, color }) {
+function BadgeTag({ label, color }: { label?: string; color?: string }) {
   if (!label) return null;
   return (
     <span style={{
@@ -375,12 +376,12 @@ const STATUS_COLOR = {
   confirmed:     C.supportError,
   dismissed:     C.textDisabled,
   resolved:      C.supportSuccess,
-};
+} as const;
 
-function ResultTile({ item, onInvestigate }) {
-  const cfg    = KIND[item.kind] || KIND.event;
-  const ref    = useRef(null);
-  const sColor = STATUS_COLOR[String(item.status || '').toLowerCase()];
+function ResultTile({ item, onInvestigate }: { item: SearchResult; onInvestigate: (item: SearchResult) => void }) {
+  const cfg    = KIND[item.kind as keyof typeof KIND] || KIND.event;
+  const ref    = useRef<HTMLDivElement>(null);
+  const sColor = STATUS_COLOR[String(item.status || '').toLowerCase() as keyof typeof STATUS_COLOR];
 
   const enter = () => {
     gsap.to(ref.current, { x: 4, duration: 0.18, ease: 'power2.out' });
@@ -510,9 +511,9 @@ function Skeleton() {
   );
 }
 
-function Pagination({ page, totalPages, onPage }) {
+function Pagination({ page, totalPages, onPage }: { page: number; totalPages: number; onPage: (page: number) => void }) {
   if (totalPages <= 1) return null;
-  const btn = (label, target, disabled) => (
+  const btn = (label: string, target: number, disabled: boolean) => (
     <button
       key={label}
       onClick={() => !disabled && onPage(target)}
@@ -541,7 +542,7 @@ function Pagination({ page, totalPages, onPage }) {
   );
 }
 
-function Empty({ query }) {
+function Empty({ query }: { query: string }) {
   return (
     <div style={{ border: `1px dashed ${C.borderSubtle}`, padding: '3rem', textAlign: 'center', background: C.bgLayer1 }}>
       <div style={{ fontSize: '2rem', color: C.textDisabled, marginBottom: '0.75rem', fontFamily: 'IBM Plex Mono, monospace' }}>◫</div>
@@ -555,7 +556,7 @@ function Empty({ query }) {
   );
 }
 
-function ErrorBanner({ message }) {
+function ErrorBanner({ message }: { message: string }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
@@ -578,10 +579,10 @@ function ErrorBanner({ message }) {
 export default function IntelligenceRegistrySearch() {
   const [draftQuery, setDraftQuery] = useState('');
   const [query,      setQuery]      = useState('');
-  const [results,    setResults]    = useState([]);
+  const [results,    setResults]    = useState<SearchResult[]>([]);
   const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
-  const [meta,       setMeta]       = useState(null);
+  const [error,      setError]      = useState<string | null>(null);
+  const [meta,       setMeta]       = useState<SearchMeta | null>(null);
   const [page,       setPage]       = useState(1);
   const [filter,     setFilter]     = useState('all');
   const [sortBy,     setSortBy]     = useState('score');
@@ -611,17 +612,17 @@ export default function IntelligenceRegistrySearch() {
     );
   }, [results]);
 
-  const executeSearch = useCallback(async (q, pg = 1) => {
+  const executeSearch = useCallback(async (q: string, pg = 1) => {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
     try {
       const res = await searchAPI(q, pg);
-      setResults(res.items);
+      setResults(res.items as SearchResult[]);
       setMeta({ query: res.query, total: res.total, totalPages: res.totalPages, page: pg });
       setPage(pg);
-    } catch (err) {
-      const msg = err?.response?.data?.detail || err.message || 'Network failure — check API server';
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.detail || (err as any)?.message || 'Network failure — check API server';
       setError(msg);
       setResults([]);
     } finally {
@@ -629,7 +630,7 @@ export default function IntelligenceRegistrySearch() {
     }
   }, []);
 
-  const handleSearch = (q) => {
+  const handleSearch = (q: string) => {
     setQuery(q);
     setFilter('all');
     setSortBy('score');
@@ -641,7 +642,7 @@ export default function IntelligenceRegistrySearch() {
     .filter(item => filter === 'all' || item.kind === filter)
     .sort((a, b) => sortBy === 'risk_score' ? (b.riskScore ?? 0) - (a.riskScore ?? 0) : b.score - a.score);
 
-  const handleInvestigate = (item) => {
+  const handleInvestigate = (item: SearchResult) => {
     window.location.href = item.navigateTo;
   };
 

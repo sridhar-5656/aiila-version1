@@ -10,7 +10,7 @@
  *   "gsap": "^3.12.x"
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AreaChart,
@@ -22,7 +22,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// ── Carbon imports ────────────────────────────────────────────────────────────
+import { DashboardStats, ChartDataPoint, Entity } from "../types";
 import {
   Search,
   Tag,
@@ -47,13 +47,13 @@ import { gsap } from "gsap";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const API_BASE = "/api/v1";
-const RISK_COLOR = {
+const RISK_COLOR: Record<string, string> = {
   critical: "#da1e28",
   high: "#ff832b",
   medium: "#f1c21b",
   low: "#42be65",
 };
-const RISK_BG = {
+const RISK_BG: Record<string, string> = {
   critical: "rgba(218,30,40,.12)",
   high: "rgba(255,131,43,.12)",
   medium: "rgba(241,194,27,.12)",
@@ -61,7 +61,7 @@ const RISK_BG = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function riskTag(level = "low") {
+function riskTag(level: string = "low") {
   const l = (level || "low").toLowerCase();
   return (
     <span
@@ -86,7 +86,7 @@ function riskTag(level = "low") {
   );
 }
 
-function scoreBar(score = 0) {
+function scoreBar(score: number = 0) {
   const pct = Math.min(100, Math.round((score / 10) * 100));
   const color =
     pct >= 80
@@ -134,7 +134,7 @@ function CustomTooltip({ active, payload, label }: { active?: any; payload?: any
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ icon: Icon, label, value, sub, accent, loading, cardRef }) {
+function KpiCard({ icon: Icon, label, value, sub, accent, loading, cardRef }: { icon?: any; label?: string; value?: number; sub?: string; accent?: string; loading?: boolean; cardRef?: React.Ref<HTMLDivElement> }) {
   return (
     <div
       ref={cardRef}
@@ -201,7 +201,7 @@ function KpiCard({ icon: Icon, label, value, sub, accent, loading, cardRef }) {
 }
 
 // ── Alert badge row ───────────────────────────────────────────────────────────
-function AlertBadges({ critical, high, loading }) {
+function AlertBadges({ critical, high, loading }: { critical?: number; high?: number; loading?: boolean }) {
   return (
     <div style={{ display: "flex", gap: 8 }}>
       {loading ? (
@@ -254,7 +254,7 @@ function AlertBadges({ critical, high, loading }) {
 }
 
 // ── Entity mini card ──────────────────────────────────────────────────────────
-function EntityCard({ entity, index, onClick }) {
+function EntityCard({ entity, index, onClick }: { entity: Entity; index: number; onClick: (id: string) => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div
@@ -319,7 +319,7 @@ function EntityCard({ entity, index, onClick }) {
             fontFamily: "'IBM Plex Mono', monospace",
             fontSize: 13,
             fontWeight: 700,
-            color: RISK_COLOR[entity.risk_level?.toLowerCase()] || "#f4f4f4",
+            color: RISK_COLOR[entity.risk_level?.toLowerCase() || ""] || "#f4f4f4",
           }}
         >
           {(entity.risk_score ?? 0).toFixed(1)}
@@ -332,7 +332,7 @@ function EntityCard({ entity, index, onClick }) {
 }
 
 // ── Search overlay ────────────────────────────────────────────────────────────
-function SearchOverlay({ results, loading, onSelect, query }) {
+function SearchOverlay({ results = [], loading = false, onSelect = () => {}, query = "" }: { results?: Entity[]; loading?: boolean; onSelect?: (id: string) => void; query?: string }) {
   if (!query) return null;
   return (
     <div
@@ -360,7 +360,7 @@ function SearchOverlay({ results, loading, onSelect, query }) {
         </div>
       )}
       {!loading &&
-        results.map((e) => (
+        results.map((e: Entity) => (
           <div
             key={e.id}
             onClick={() => onSelect(e.id)}
@@ -398,18 +398,18 @@ export default function DashboardHome() {
   const navigate = useNavigate();
 
   // ── state ──────────────────────────────────────────────────────────────────
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [statsError, setStatsError] = useState(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<Entity[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchRef = useRef(null);
 
   // ── refs for GSAP ──────────────────────────────────────────────────────────
   const headerRef = useRef(null);
-  const kpiRefs = useRef([]);
+  const kpiRefs = useRef<(HTMLDivElement | null)[]>([]);
   const chartRef = useRef(null);
   const entityListRef = useRef(null);
 
@@ -426,7 +426,7 @@ export default function DashboardHome() {
         const data = await r.json();
         if (active) setStats(data);
       } catch (err) {
-        if (active) setStatsError(err.message);
+        if (active) setStatsError((err as any).message);
       } finally {
         if (active) setStatsLoading(false);
       }
@@ -512,16 +512,17 @@ export default function DashboardHome() {
 
   // ── close search on outside click ─────────────────────────────────────────
   useEffect(() => {
-    const handler = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (searchRef.current && !(searchRef.current as unknown as Node).contains(target)) {
         setSearchQuery("");
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("mousedown", handler as EventListener);
+    return () => document.removeEventListener("mousedown", handler as EventListener);
   }, []);
 
-  const goEntity = useCallback((id) => navigate(`/entities/${id}`), [navigate]);
+  const goEntity = useCallback((id: string) => navigate(`/entities/${id}`), [navigate]);
 
   // ── chart data ─────────────────────────────────────────────────────────────
   const chartData = stats?.alerts_last_24h_by_hour ?? [];
@@ -647,7 +648,7 @@ export default function DashboardHome() {
           <SearchOverlay
             results={searchResults}
             loading={searchLoading}
-            onSelect={(id) => { setSearchQuery(""); goEntity(id); }}
+            onSelect={(id: string) => { setSearchQuery(""); goEntity(id); }}
             query={searchQuery}
           />
         </div>
@@ -696,7 +697,7 @@ export default function DashboardHome() {
               key={k.label}
               {...k}
               loading={statsLoading}
-              cardRef={(el) => (kpiRefs.current[i] = el)}
+              cardRef={(el: HTMLDivElement | null) => { if (el) kpiRefs.current[i] = el; }}
             />
           ))}
         </div>
@@ -753,7 +754,7 @@ export default function DashboardHome() {
                   color: "#78a9ff",
                 }}
               >
-                {statsLoading ? "—" : chartData.reduce((s, d) => s + d.count, 0)}
+                {statsLoading ? "—" : chartData.reduce((s: number, d: ChartDataPoint) => s + d.count, 0)}
               </div>
             </div>
 
@@ -870,7 +871,7 @@ export default function DashboardHome() {
                       </div>
                     </div>
                   ))
-                : (stats?.top_risk_entities ?? []).slice(0, 5).map((entity, i) => (
+                : (stats?.top_risk_entities ?? []).slice(0, 5).map((entity: Entity, i: number) => (
                     <div key={entity.id} style={{ borderBottom: "1px solid #262626" }}>
                       <EntityCard entity={entity} index={i} onClick={goEntity} />
                       {/* mini score bar outside the card for extra depth */}

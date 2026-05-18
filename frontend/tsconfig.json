@@ -2,8 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
 
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
 
     "strict": true,
 
@@ -14,6 +15,9 @@
 
     "resolveJsonModule": true,
 
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "rootDir": "src",
     "outDir": "./dist",
 
     "paths": {

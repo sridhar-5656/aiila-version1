@@ -22,14 +22,19 @@ export type EntityType = 'person' | 'organization' | 'domain' | 'ip' | 'url' | '
 
 export interface Entity {
   id: string;
-  name: string;
-  type: EntityType;
+  name?: string;
+  display_name?: string;
+  primary_identifier?: string;
+  type?: EntityType;
+  entity_type?: string;
   risk_score: number;
+  risk_level?: string;
   description?: string;
   aliases?: string[];
   tags?: string[];
   first_seen: string;
   last_seen: string;
+  event_count?: number;
   metadata?: Record<string, any>;
   linked_entities?: string[];
 }
@@ -146,13 +151,96 @@ export interface ApiError {
 }
 
 // ─── Dashboard / Stats Types ────────────────────────────────────────────────────
+export interface ChartDataPoint {
+  hour: string;
+  count: number;
+}
+
+export interface RiskMetrics {
+  avg_entity_risk_score: number;
+  entities_high_or_critical: number;
+}
+
 export interface DashboardStats {
   total_alerts: number;
   open_alerts: number;
   critical_alerts: number;
+  high_alerts: number;
   total_entities: number;
+  total_entities_tracked: number;
+  flagged_entities: number;
+  alerts_today: number;
+  high_risk_entities: number;
   active_sources: number;
+  events_today: number;
+  risk_metrics: RiskMetrics;
+  alerts_last_24h_by_hour: ChartDataPoint[];
+  top_risk_entities: Entity[];
   recent_alerts: Alert[];
+}
+
+// ─── Search Result Types ─────────────────────────────────────────────────────────
+export type SearchResultKind = 'entity' | 'alert' | 'event';
+
+export interface SearchResultEntity {
+  kind: 'entity';
+  score: number;
+  id: string;
+  riskScore?: number;
+  riskLevel?: string;
+  title: string;
+  badge: string;
+  snippet: null;
+  platform: null;
+  publishedAt: null;
+  status: null;
+  navigateTo: string;
+}
+
+export interface SearchResultAlert {
+  kind: 'alert';
+  score: number;
+  id: string;
+  riskScore?: number;
+  riskLevel?: string;
+  title: string;
+  badge: string;
+  snippet: null;
+  platform: null;
+  publishedAt: null;
+  status: string;
+  navigateTo: string;
+}
+
+export interface SearchResultEvent {
+  kind: 'event';
+  score: number;
+  id: string;
+  riskScore?: number;
+  riskLevel?: string;
+  title: string;
+  badge: string;
+  snippet: string;
+  platform: string;
+  publishedAt: string;
+  status: null;
+  navigateTo: string;
+}
+
+export type SearchResult = SearchResultEntity | SearchResultAlert | SearchResultEvent;
+
+export interface SearchMeta {
+  query: string;
+  total: number;
+  totalPages: number;
+  page: number;
+}
+
+export interface SearchResponse {
+  items: SearchResult[];
+  total: number;
+  totalPages: number;
+  query: string;
 }
 
 // ─── WebSocket Message Types ────────────────────────────────────────────────────
